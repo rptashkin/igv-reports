@@ -1,5 +1,6 @@
 import pysam
 from igv_reports.chralias import build_aliastable
+import subprocess
 
 class BamReader:
 
@@ -8,37 +9,37 @@ class BamReader:
         self.filename = filename
         self.args = args
 
-        samargs = ["-H", filename]
-        header = pysam.view(*samargs)
+        samargs = "samtools view -H " + filename
+        header = str(subprocess.check_output(samargs, shell=True))
         seqnames = parse_seqnames(header)
         self.aliastable = build_aliastable(seqnames)
 
     # add sam flag for unit tests
     def slice(self, region=None, region2=None,  sam=False):
         if sam:
-            samargs = ["-h", self.filename]
+            samargs = "samtools view -h " + self.filename
         else:
-            samargs = ["-b", "-h", self.filename]
+            samargs = "samtools view -b -h " +  self.filename
         if self.filtetype == "cram" and self.args is not None:
-            samargs.append("-T")
-            samargs.append(self.args.fasta)
+            samargs = samargs +  (" -T ")
+            samargs = samargs + self.args.fasta
 
         if self.args is not None and hasattr(self.args, "exclude_flags"):
             if self.args.exclude_flags != 0:
-                samargs.append("-F")
-                samargs.append(str(self.args.exclude_flags))
+                samargs = samargs + " -F "
+                samargs = samargs + str(self.args.exclude_flags)
         else:
-            samargs.append("-F")
-            samargs.append("1536")
+            samargs = samargs + "-F "
+            samargs = samargs + "1536 "
 
         if region:
             range_string = self.get_chrname(region['chr']) + ":" + str(region['start']) + "-" + str(region['end'])
-            samargs.append(range_string)
+            samargs = samargs + " " + range_string
         if region2:
             range_string = self.get_chrname(region2['chr']) + ":" + str(region2['start']) + "-" + str(region2['end'])
-            samargs.append(range_string)
-
-        return pysam.view(*samargs)
+            samargs = samargs + " " + range_string
+        #print(samargs)
+        return subprocess.check_output(samargs, shell=True)
 
     def get_chrname(self, c):
         if c in self.aliastable:
